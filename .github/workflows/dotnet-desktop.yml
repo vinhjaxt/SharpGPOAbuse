@@ -1,0 +1,54 @@
+name: .NET Desktop
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+
+  build:
+
+    strategy:
+      matrix:
+        configuration: [Release]
+
+    runs-on: windows-latest
+    env:
+      Solution_Name: SharpGPOAbuse.sln
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    # Add  MSBuild to the PATH: https://github.com/microsoft/setup-msbuild
+    - name: Setup MSBuild.exe
+      uses: microsoft/setup-msbuild@v1.0.2
+      
+    - name: Restore dep
+      run: cmd.exe /c nuget restore $env:Solution_Name
+
+    # Restore the application to populate the obj folder with RuntimeIdentifiers
+    - name: Restore the application
+      run: msbuild $env:Solution_Name /p:Configuration=$env:Configuration
+      env:
+        Configuration: ${{ matrix.configuration }}
+
+    - name: Files
+      run: cmd.exe /c dir /s /b .
+
+# Create release
+    - name: Generate release tag
+      id: tag
+      run: |
+        echo "::set-output name=release_tag::ActionBuild_$(date +"%Y.%m.%d_%H-%M-%S")"
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.tag.outputs.release_tag }}
+        files: |
+          ./SharpGPOAbuse/obj/Release/SharpGPOAbuse.exe
+# Done release
